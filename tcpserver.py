@@ -8,11 +8,28 @@
 
 import socket
 import sys
+import threading
 
 # -----------  Config  ----------
 IP_VERSION = 'IPv4'
 PORT = 3333
 # -------------------------------
+occupancy_count = 100
+print("Occupancy Count is: " + str(occupancy_count))
+
+def clicker_thread(conn):
+    global occupancy_count
+    while True:
+        data = conn.recv(128)
+        if not data:
+            break
+        occupancy_count = occupancy_count - 1 
+        print("Occupancy Count is: " + str(occupancy_count))
+        # data = data.decode()
+        # print('Received data: ' + data)
+        # reply = 'OK: ' + data
+        # conn.send(reply.encode())
+    conn.close()
 
 if IP_VERSION == 'IPv4':
     family_addr = socket.AF_INET
@@ -31,29 +48,34 @@ except socket.error as msg:
 
 print('Socket created')
 
-try:
-    sock.bind(('', PORT))
-    print('Socket binded')
-    sock.listen(1)
-    print('Socket listening')
-    conn, addr = sock.accept()
-    print('Connected by', addr)
-except socket.error as msg:
-    print('Error: ' + str(msg[0]) + ': ' + msg[1])
-    sock.close()
-    sys.exit(1)
+clicker_thread_list = []
 
-occupancy_count = 100
-print("Occupancy Count is: " + str(occupancy_count))
+sock.bind(('', PORT))
+print('Socket binded')
 
 while True:
-    data = conn.recv(128)
-    if not data:
-        break
-    occupancy_count = occupancy_count - 1 
-    print("Occupancy Count is: " + str(occupancy_count))
-    # data = data.decode()
-    # print('Received data: ' + data)
-    # reply = 'OK: ' + data
-    # conn.send(reply.encode())
-conn.close()
+    try:
+        sock.listen(1)
+        print('Socket listening')
+        conn, addr = sock.accept()
+        print('Connected by', addr)
+        clicker_handler_thread = threading.Thread(target=clicker_thread, args=(conn,))
+        clicker_thread_list.append(clicker_handler_thread)
+        clicker_handler_thread.start() 
+    except socket.error as msg:
+        print('Error: ' + str(msg[0]) + ': ' + msg[1])
+        sock.close()
+        sys.exit(1)
+
+
+# while True:
+#     data = conn.recv(128)
+#     if not data:
+#         break
+#     occupancy_count = occupancy_count - 1 
+#     print("Occupancy Count is: " + str(occupancy_count))
+#     # data = data.decode()
+#     # print('Received data: ' + data)
+#     # reply = 'OK: ' + data
+#     # conn.send(reply.encode())
+# conn.close()
